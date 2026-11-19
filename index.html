@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claro - Controle de Equipamentos</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+    <style>
+        :root { --claro-red: #E30613; --bg-color: #f4f4f9; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 12px; background: var(--bg-color); color: #333; }
+        h2 { color: var(--claro-red); text-align: center; margin-bottom: 16px; font-size: 20px; }
+        .card { background: white; padding: 16px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 16px; }
+        label { font-weight: bold; font-size: 13px; display: block; margin-top: 10px; color: #555; }
+        input, select { width: 100%; padding: 12px; margin-top: 4px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 16px; background: #fff; }
+        button { background: var(--claro-red); color: white; border: none; padding: 14px; border-radius: 6px; font-size: 16px; width: 100%; margin-top: 14px; cursor: pointer; font-weight: bold; }
+        button.secondary { background: #444; margin-top: 8px; }
+        button.danger { background: #d9534f; padding: 6px 10px; font-size: 12px; width: auto; margin-top: 0; }
+        #reader-container { display: none; margin-top: 10px; text-align: center; }
+        #reader { width: 100%; max-width: 300px; max-height: 150px; margin: 0 auto; border-radius: 6px; overflow: hidden; border: 2px solid var(--claro-red); }
+        #reader video { object-fit: cover; max-height: 150px; }
+        #scanner-status { font-size: 12px; color: var(--claro-red); font-weight: bold; margin-top: 6px; min-height: 16px; }
+        .table-container { overflow-x: auto; margin-top: 10px; max-height: 300px; overflow-y: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background: #eee; position: sticky; top: 0; }
+        .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; background: #eef; color: #333; }
+        .badge-cliente { background: #d4edda; color: #155724; }
+        .badge-reversa { background: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+
+    <h2>Claro - Leitor e Controle de Campo</h2>
+
+    <div class="card">
+        <label for="contrato">Número do Contrato / OS</label>
+        <input type="text" id="contrato" placeholder="Ex: 001234567">
+
+        <label for="movimentacao">Destino / Movimentação</label>
+        <select id="movimentacao">
+            <option value="Cliente">Cliente (Instalação / Entrega)</option>
+            <option value="Reversa">Reversa (Retirada / Devolução)</option>
+        </select>
+
+        <label for="tipo">Tipo de Equipamento</label>
+        <select id="tipo">
+            <option value="ONT">ONT (Fibra Óptica)</option>
+            <option value="EMTA">EMTA (Modem HFC)</option>
+            <option value="DECODER">Decoder TV 4K / HD</option>
+            <option value="CHIP">Chip / ICCID Movel</option>
+            <option value="MESH">Roteador Mesh Wi-Fi</option>
+        </select>
+
+        <label for="mac">MAC / Serial / ICCID</label>
+        <input type="text" id="mac" placeholder="Escaneie ou digite o MAC...">
+        <button type="button" class="secondary" onclick="toggleScanner()">📷 Ligar / Desligar Câmera (Somente MAC)</button>
+        
+        <div id="reader-container">
+            <div id="reader"></div>
+            <div id="scanner-status">Aponte para o código de barras do MAC...</div>
+        </div>
+
+        <button onclick="salvarEquipamento()">Salvar Equipamento</button>
+    </div>
+
+    <div class="card">
+        <h3>Equipamentos Registrados (<span id="contador">0</span>)</h3>
+        <button class="secondary" onclick="exportarCSV()">📥 Baixar Relatório (CSV para Excel)</button>
+        <div class="table-container">
+            <table id="tabela-dados">
+                <thead>
+                    <tr>
+                        <th>Data/Hora</th>
+                        <th>Contrato</th>
+                        <th>Status</th>
+                        <th>Tipo</th>
+                        <th>MAC / Serial</th>
+                        <th>Ação</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+<script>
+    let dados = JSON.parse(localStorage.getItem('claro_equipamentos_v1') || '[]');
+    let html5QrCode = null;
+    let cameraAtiva = false;
+
+    atualizarTabela();
+
+    function obterDataAtual() {
+        const agora = new Date();
+        const dia = String(agora.getDate()).padStart(2, '0');
+        const mes = String(agora.getMonth() + 1).padStart(2, '0');
+        const ano = agora.getFullYear();
+        const hora = String(agora.getHours()).padStart(2, '0');
+        const min = String(agora.getMinutes()).padStart(2, '0');
+        return `${dia}/${mes}/${ano} ${hora}:${min}`;
+    }
+
+    // Valida e extrai exclusivamente padrões de endereço MAC (12 dígitos hexadecimais, com ou sem separadores)
+    function extrairMacValido(textoLido) {
+        const limpo = textoLido.trim().toUpperCase();
+        
+        // Remove prefixos comuns de etiquetas (ex: "MAC:", "CM MAC:", "WAN MAC ", "HFC MAC:")
+        const semPrefixo = limpo.replace(/^(CM\s*MAC|WAN\s*MAC|HFC\s*MAC|LAN\s*MAC|MTA\s*MAC|MAC)\s*[:\-]?\s*/i, '');
+
+        // Padrão 1: 12 caracteres hexadecimais seguidos (Ex: A4B1C2D3E4F5)
+        const matchContinuo = semPrefixo.match(/^([0-9A-F]{12})$/);
+        if (matchContinuo) {
+            return matchContinuo[1];
+        }
+
+        // Padrão 2: 6 pares hexadecimais separados por ':' ou '-' (Ex: A4:B1:C2:D3:E4:F5)
+        const matchSeparado = semPrefixo.match(/^([0-9A-F]{2}[:\-]){5}[0-9A-F]{2}$/);
+        if (matchSeparado) {
+            return semPrefixo.replace(/[:\-]/g, ''); // Padroniza sem pontos para facilitar planilha/sistema
+        }
+
+        // Padrão 3: QR Code contendo várias informações da etiqueta (procura um MAC válido no meio do texto)
+        const matchEmbutido = limpo.match(/(?:MAC\s*[:\-]?\s*)?([0-9A-F]{2}[:\-]?[0-9A-F]{2}[:\-]?[0-9A-F]{2}[:\-]?[0-9A-F]{2}[:\-]?[0-9A-F]{2}[:\-]?[0-9A-F]{2})\b/);
+        if (matchEmbutido) {
+            const candidato = matchEmbutido[1].replace(/[:\-]/g, '');
+            if (/^[0-9A-F]{12}$/.test(candidato)) {
+                return candidato;
+            }
+        }
+
+        return null;
+    }
+
+    function toggleScanner() {
+        const container = document.getElementById('reader-container');
+        const statusDiv = document.getElementById('scanner-status');
+
+        if (!cameraAtiva) {
+            container.style.display = 'block';
+            statusDiv.innerText = "Aponte para o código de barras do MAC...";
+
+            // Restringe a leitura aos formatos usados em etiquetas de equipamentos (Code 128, Code 39, QR Code, Data Matrix)
+            const formatosSuportados = [
+                Html5QrcodeSupportedFormats.CODE_128,
+                Html5QrcodeSupportedFormats.CODE_39,
+                Html5QrcodeSupportedFormats.QR_CODE,
+                Html5QrcodeSupportedFormats.DATA_MATRIX
+            ];
+
+            html5QrCode = new Html5Qrcode("reader", { formatsToSupport: formatosSuportados, verbose: false });
+            
+            html5QrCode.start(
+                { facingMode: "environment" },
+                { 
+                    fps: 15, 
+                    qrbox: { width: 220, height: 55 }, 
+                    aspectRatio: 2.0 
+                },
+                (decodedText) => {
+                    const macValidado = extrairMacValido(decodedText);
+                    
+                    if (macValidado) {
+                        document.getElementById('mac').value = macValidado;
+                        if (navigator.vibrate) navigator.vibrate(100); // Vibra ao confirmar leitura válida
+                        pararScanner();
+                    } else {
+                        // Ignora seriais, part numbers e códigos de barras comuns, avisando na tela
+                        statusDiv.innerText = `Ignorado (${decodedText.trim().substring(0, 15)}...) - Não é MAC`;
+                    }
+                },
+                (errorMessage) => {}
+            ).catch(err => {
+                alert("Erro ao acessar a câmera. Verifique as permissões do navegador: " + err);
+                container.style.display = 'none';
+            });
+            cameraAtiva = true;
+        } else {
+            pararScanner();
+        }
+    }
+
+    function pararScanner() {
+        const container = document.getElementById('reader-container');
+        if (html5QrCode && cameraAtiva) {
+            html5QrCode.stop().then(() => {
+                container.style.display = 'none';
+                cameraAtiva = false;
+            }).catch(err => {
+                container.style.display = 'none';
+                cameraAtiva = false;
+            });
+        } else {
+            container.style.display = 'none';
+            cameraAtiva = false;
+        }
+    }
+
+    function salvarEquipamento() {
+        const contrato = document.getElementById('contrato').value.trim();
+        const movimentacao = document.getElementById('movimentacao').value;
+        const tipo = document.getElementById('tipo').value;
+        const mac = document.getElementById('mac').value.trim().toUpperCase();
+        const dataHora = obterDataAtual();
+
+        if (!contrato || !mac) {
+            alert("Atenção: Preencha o Número do Contrato e o MAC do equipamento!");
+            return;
+        }
+
+        const novoItem = { 
+            id: Date.now(), 
+            data: dataHora, 
+            contrato, 
+            movimentacao, 
+            tipo, 
+            mac 
+        };
+        
+        dados.unshift(novoItem);
+        localStorage.setItem('claro_equipamentos_v1', JSON.stringify(dados));
+
+        document.getElementById('mac').value = ''; 
+        atualizarTabela();
+    }
+
+    function deletarItem(id) {
+        if (confirm("Deseja remover este item da lista?")) {
+            dados = dados.filter(item => item.id !== id);
+            localStorage.setItem('claro_equipamentos_v1', JSON.stringify(dados));
+            atualizarTabela();
+        }
+    }
+
+    function atualizarTabela() {
+        const tbody = document.querySelector('#tabela-dados tbody');
+        tbody.innerHTML = '';
+        document.getElementById('contador').innerText = dados.length;
+
+        if (dados.length === 0) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td colspan="6" style="text-align:center; color:#888;">Nenhum equipamento registrado ainda.</td>`;
+            tbody.appendChild(tr);
+            return;
+        }
+
+        dados.forEach(item => {
+            const mov = item.movimentacao || 'Cliente';
+            const dataExibicao = item.data || '-';
+            const badgeClass = mov === 'Reversa' ? 'badge-reversa' : 'badge-cliente';
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${dataExibicao}</td>
+                <td><b>${item.contrato}</b></td>
+                <td><span class="badge ${badgeClass}">${mov}</span></td>
+                <td><span class="badge">${item.tipo}</span></td>
+                <td>${item.mac}</td>
+                <td><button class="danger" onclick="deletarItem(${item.id})">Excluir</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function exportarCSV() {
+        if (dados.length === 0) {
+            alert("Não há dados cadastrados para exportar.");
+            return;
+        }
+        let csvContent = "data:text/csv;charset=utf-8,﻿Data_Hora;Contrato;Status;Tipo;MAC_Serial\n";
+        dados.forEach(item => {
+            const mov = item.movimentacao || 'Cliente';
+            const dataExibicao = item.data || '-';
+            csvContent += `${dataExibicao};${item.contrato};${mov};${item.tipo};${item.mac}\n`;
+        });
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "relatorio_equipamentos_claro.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+</script>
+
+</body>
+</html>
