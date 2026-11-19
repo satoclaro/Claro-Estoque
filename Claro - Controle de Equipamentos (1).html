@@ -1,0 +1,130 @@
+<!-- ... existing code ... -->
+        th { background: #eee; position: sticky; top: 0; }
+        .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; background: #eef; color: #333; }
+        .badge-cliente { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .badge-reversa { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+
+    <h2>Claro - Leitor e Controle de Campo</h2>
+
+    <div class="card">
+        <label for="contrato">Número do Contrato / OS</label>
+        <input type="text" id="contrato" placeholder="Ex: 001234567">
+
+        <label for="movimentacao">Movimentação / Destino</label>
+        <select id="movimentacao">
+            <option value="Cliente">Cliente</option>
+            <option value="Reversa">Reversa</option>
+        </select>
+
+        <label for="tipo">Tipo de Equipamento</label>
+        <select id="tipo">
+<!-- ... existing code ... -->
+        <div class="table-container">
+            <table id="tabela-dados">
+                <thead>
+                    <tr>
+                        <th>Contrato</th>
+                        <th>Movimentação</th>
+                        <th>Tipo</th>
+                        <th>MAC / Serial</th>
+                        <th>Data / Hora</th>
+                        <th>Ação</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+<script>
+    let dados = JSON.parse(localStorage.getItem('claro_equipamentos_v1') || '[]');
+// ... existing code ... -->
+        } else {
+            document.getElementById('reader').style.display = 'none';
+            cameraAtiva = false;
+        }
+    }
+
+    function obterDataHoraAtual() {
+        const agora = new Date();
+        const dia = String(agora.getDate()).padStart(2, '0');
+        const mes = String(agora.getMonth() + 1).padStart(2, '0');
+        const ano = agora.getFullYear();
+        const horas = String(agora.getHours()).padStart(2, '0');
+        const minutos = String(agora.getMinutes()).padStart(2, '0');
+        return `${dia}/${mes}/${ano} ${horas}:${minutos}`;
+    }
+
+    function salvarEquipamento() {
+        const contrato = document.getElementById('contrato').value.trim();
+        const movimentacao = document.getElementById('movimentacao').value;
+        const tipo = document.getElementById('tipo').value;
+        const mac = document.getElementById('mac').value.trim().toUpperCase();
+
+        if (!contrato || !mac) {
+            alert("Atenção: Preencha o Número do Contrato e o MAC/Serial do equipamento!");
+            return;
+        }
+
+        const dataHora = obterDataHoraAtual();
+        const novoItem = { id: Date.now(), contrato, movimentacao, tipo, mac, dataHora };
+        dados.unshift(novoItem);
+        localStorage.setItem('claro_equipamentos_v1', JSON.stringify(dados));
+
+        document.getElementById('mac').value = ''; 
+        atualizarTabela();
+    }
+
+    function deletarItem(id) {
+// ... existing code ... -->
+        if (dados.length === 0) {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td colspan="6" style="text-align:center; color:#888;">Nenhum equipamento registrado ainda.</td>`;
+            tbody.appendChild(tr);
+            return;
+        }
+
+        dados.forEach(item => {
+            const mov = item.movimentacao || 'Cliente';
+            const badgeClass = mov === 'Reversa' ? 'badge badge-reversa' : 'badge badge-cliente';
+            const dataRegistro = item.dataHora || '-';
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><b>${item.contrato}</b></td>
+                <td><span class="${badgeClass}">${mov}</span></td>
+                <td><span class="badge">${item.tipo}</span></td>
+                <td>${item.mac}</td>
+                <td>${dataRegistro}</td>
+                <td><button class="danger" onclick="deletarItem(${item.id})">Excluir</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function exportarCSV() {
+        if (dados.length === 0) {
+            alert("Não há dados cadastrados para exportar.");
+            return;
+        }
+        let csvContent = "data:text/csv;charset=utf-8,Contrato;Movimentacao;Tipo;MAC_Serial;Data_Hora\n";
+        dados.forEach(item => {
+            const mov = item.movimentacao || 'Cliente';
+            const dataRegistro = item.dataHora || '';
+            csvContent += `${item.contrato};${mov};${item.tipo};${item.mac};${dataRegistro}\n`;
+        });
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "relatorio_equipamentos_claro.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+</script>
+
+</body>
+</html>
