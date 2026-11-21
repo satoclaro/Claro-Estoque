@@ -171,6 +171,9 @@
         <div class="export-buttons">
             <button class="secondary" onclick="exportarCSV()">📥 Baixar Excel (CSV)</button>
             <button class="pdf-btn" onclick="exportarPDF()">📄 Baixar PDF</button>
+            <button class="secondary" onclick="exportarJSON()">💾 Exportar JSON</button>
+            <button class="secondary" onclick="document.getElementById('importar-json-input').click()">📂 Importar JSON</button>
+            <input type="file" id="importar-json-input" accept=".json,application/json" style="display:none" onchange="importarJSON(event)">
         </div>
 
         <div class="table-container">
@@ -190,7 +193,7 @@
         </div>
     </div>
 
-    <footer class="footer-info" id="rodape-versao">Criado por: Fernando Sato - Versão 25.0 - 20/11/2026 21:46</footer>
+    <footer class="footer-info" id="rodape-versao">Criado por: Fernando Sato - Versão 26.0 - 20/11/2026 21:46</footer>
 
 <script>
     let dados = JSON.parse(localStorage.getItem('claro_equipamentos_v1') || '[]');
@@ -199,7 +202,7 @@
     let flashAtivo = false;
     let videoTrackAtual = null;
 
-    const VERSAO_APP = "25.0";
+    const VERSAO_APP = "26.0";
     function atualizarRodape() {
         const rodape = document.getElementById('rodape-versao');
         if (rodape) {
@@ -988,6 +991,90 @@
             `;
             tbody.appendChild(tr);
         });
+    }
+
+    function exportarJSON() {
+        const listaExportar = obterDadosFiltrados();
+        if (listaExportar.length === 0) {
+            alert("Não há dados cadastrados para exportar.");
+            return;
+        }
+        const jsonStr = JSON.stringify(listaExportar, null, 2);
+        const blob = new Blob([jsonStr], { type: "application/json;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", "backup_equipamentos_claro.json");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
+
+    function importarJSON(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const conteudo = JSON.parse(e.target.result);
+                const listaImportada = Array.isArray(conteudo) ? conteudo : (Array.isArray(conteudo.dados) ? conteudo.dados : null);
+
+                if (!listaImportada) {
+                    alert("Arquivo JSON inválido. O formato esperado é uma lista de registros de equipamentos.");
+                    event.target.value = "";
+                    return;
+                }
+
+                const registrosValidos = listaImportada.filter(item => item && typeof item === "object" && (item.contrato || item.mac));
+                if (registrosValidos.length === 0) {
+                    alert("Nenhum registro válido encontrado no arquivo JSON.");
+                    event.target.value = "";
+                    return;
+                }
+
+                const substituir = dados.length > 0
+                    ? confirm(`Encontrados ${registrosValidos.length} registro(s) no JSON.\n\nClique em OK para MESCLAR com os ${dados.length} registros atuais (sem duplicar).\nClique em CANCELAR para SUBSTITUIR toda a lista atual.`)
+                    : true;
+
+                const normalizados = registrosValidos.map((item, idx) => ({
+                    id: item.id || (Date.now() + idx),
+                    data: item.data || obterDataAtual(),
+                    contrato: String(item.contrato || "").trim(),
+                    movimentacao: item.movimentacao === "Reversa" ? "Reversa" : "Cliente",
+                    tipo: String(item.tipo || "EMTA").toUpperCase(),
+                    mac: String(item.mac || "").trim().toUpperCase(),
+                    dataEntrega: item.dataEntrega || null
+                }));
+
+                if (substituir) {
+                    const chavesExistentes = new Set(dados.map(d => `${d.contrato}|${d.mac}|${d.data}`));
+                    let adicionados = 0;
+                    normalizados.forEach(item => {
+                        const chave = `${item.contrato}|${item.mac}|${item.data}`;
+                        if (!chavesExistentes.has(chave)) {
+                            dados.push(item);
+                            chavesExistentes.add(chave);
+                            adicionados++;
+                        }
+                    });
+                    localStorage.setItem('claro_equipamentos_v1', JSON.stringify(dados));
+                    atualizarTabela();
+                    alert(`Importação concluída! ${adicionados} novo(s) registro(s) adicionado(s).`);
+                } else {
+                    dados = normalizados;
+                    localStorage.setItem('claro_equipamentos_v1', JSON.stringify(dados));
+                    atualizarTabela();
+                    alert(`Lista substituída com sucesso! Total: ${dados.length} registro(s).`);
+                }
+            } catch (err) {
+                alert("Erro ao ler o arquivo JSON: " + err.message);
+            } finally {
+                event.target.value = "";
+            }
+        };
+        reader.readAsText(file, "UTF-8");
     }
 
     function exportarCSV() {

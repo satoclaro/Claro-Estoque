@@ -1,6 +1,6 @@
-# Claro - Controle de Equipamentos Diário (Versão 25.0)
+# Claro - Controle de Equipamentos Diário (Versão 26.0)
 
-Aplicação web responsiva e 100% client-side (offline-first via `localStorage`) em **tema escuro**, desenvolvida para registro, conferência, rastreio de reversa e exportação diária de equipamentos de telecomunicações em campo.
+Aplicação web responsiva e 100% client-side (offline-first via `localStorage`) em **tema escuro**, desenvolvida para registro, conferência, rastreio de reversa, backup e exportação diária de equipamentos de telecomunicações em campo.
 
 ---
 
@@ -20,9 +20,11 @@ Aplicação web responsiva e 100% client-side (offline-first via `localStorage`)
 - **Controle de Reversa e Pesquisa**:
   - Marcação de entrega de reversa (`📅 Entregue`) com registro automático de data e hora (`✓ Entregue: DD/MM/AAAA HH:MM`).
   - Busca instantânea por MAC, CA ID, Contrato/OS ou Data.
-- **Exportação de Relatórios**:
-  - **Excel (CSV)** compatível com Microsoft Excel (UTF-8 com BOM e separador `;`).
-  - **PDF** em paisagem (A4) gerado com `jsPDF` + `AutoTable`, respeitando os filtros de busca aplicados.
+- **Exportação, Backup e Restauração de Dados**:
+  - **Excel (CSV)**: Exportação compatível com Microsoft Excel (UTF-8 com BOM e separador `;`).
+  - **PDF**: Relatório em paisagem (A4) gerado com `jsPDF` + `AutoTable`, respeitando os filtros de busca aplicados.
+  - **Exportar JSON (`💾 Exportar JSON`)**: Salva um backup completo (`backup_equipamentos_claro.json`) com todos os registros (ou apenas os filtrados na busca).
+  - **Importar JSON (`📂 Importar JSON`)**: Restaura backups `.json`, permitindo **mesclar** novos registros sem duplicar ou **substituir** a lista atual.
 
 ---
 
@@ -33,9 +35,9 @@ Aplicação web responsiva e 100% client-side (offline-first via `localStorage`)
 3. Toque em **📷 Ligar e Desligar Câmera**, alinhe a linha vermelha sobre o código desejado e aguarde a captura automática ou toque na tela / em **📸 Ler Mira Agora**.
    - Caso precise ler um código normalmente filtrado (como Serial ou outro MAC), utilize o botão **🔓 Forçar Leitura**.
 4. Clique em **Salvar Equipamento** para armazenar o registro localmente no aparelho.
-5. Utilize **📥 Baixar Excel (CSV)** ou **📄 Baixar PDF** ao final do expediente para gerar o relatório.
+5. Utilize **📥 Baixar Excel (CSV)** ou **📄 Baixar PDF** para relatórios, ou **💾 Exportar JSON** / **📂 Importar JSON** para transferir e restaurar backups entre aparelhos.
 
 ---
 
 **Autor:** Fernando Sato  
-**Versão:** 25.0
+**Versão:** 26.0
