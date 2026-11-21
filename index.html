@@ -9,22 +9,25 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <style>
-        :root { --claro-red: #E30613; --bg-color: #f4f4f9; }
-        body { font-family: Arial, sans-serif; margin: 0; padding: 12px; background: var(--bg-color); color: #333; }
+        :root { --claro-red: #E30613; --bg-color: #121212; --card-bg: #1e1e24; --input-bg: #2a2a32; --border-color: #3a3a44; --text-main: #f1f1f4; --text-muted: #b0b0bc; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 12px; background: var(--bg-color); color: var(--text-main); }
         .header-title { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 16px; }
         .header-title img { height: 42px; width: 42px; object-fit: contain; }
-        .header-title h2 { color: var(--claro-red); margin: 0; font-size: 19px; text-align: left; line-height: 1.2; }
-        .card { background: white; padding: 16px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 16px; }
-        label { font-weight: bold; font-size: 13px; display: block; margin-top: 10px; color: #555; }
-        input, select { width: 100%; padding: 12px; margin-top: 4px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 16px; background: #fff; }
+        .header-title h2 { color: #ff2a36; margin: 0; font-size: 19px; text-align: left; line-height: 1.2; }
+        .card { background: var(--card-bg); padding: 16px; border-radius: 8px; border: 1px solid var(--border-color); box-shadow: 0 4px 12px rgba(0,0,0,0.45); margin-bottom: 16px; }
+        .card h3 { margin-top: 0; color: var(--text-main); }
+        label { font-weight: bold; font-size: 13px; display: block; margin-top: 10px; color: var(--text-muted); }
+        input, select { width: 100%; padding: 12px; margin-top: 4px; border: 1px solid var(--border-color); border-radius: 6px; box-sizing: border-box; font-size: 16px; background: var(--input-bg); color: var(--text-main); }
+        input::placeholder { color: #858594; }
+        input:focus, select:focus { outline: none; border-color: var(--claro-red); }
         button { background: var(--claro-red); color: white; border: none; padding: 14px; border-radius: 6px; font-size: 16px; width: 100%; margin-top: 14px; cursor: pointer; font-weight: bold; }
-        button.secondary { background: #444; margin-top: 8px; }
-        button.pdf-btn { background: #b30000; margin-top: 8px; }
+        button.secondary { background: #34343e; color: #f1f1f4; border: 1px solid #484856; margin-top: 8px; }
+        button.pdf-btn { background: #9e040d; margin-top: 8px; }
         .export-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
         .export-buttons button { flex: 1; min-width: 140px; font-size: 14px; padding: 12px 10px; }
-        button.danger { background: #d9534f; padding: 6px 10px; font-size: 12px; width: auto; margin-top: 0; }
-        button.entrega { background: #28a745; padding: 6px 10px; font-size: 12px; width: auto; margin-top: 0; margin-left: 6px; }
-        .entrega-info { display: inline-block; margin-left: 6px; font-size: 11px; color: #155724; background: #d4edda; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
+        button.danger { background: #c9302c; padding: 6px 10px; font-size: 12px; width: auto; margin-top: 0; }
+        button.entrega { background: #218838; padding: 6px 10px; font-size: 12px; width: auto; margin-top: 0; margin-left: 6px; }
+        .entrega-info { display: inline-block; margin-left: 6px; font-size: 11px; color: #8ff0a4; background: #193b23; border: 1px solid #28683a; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
         
         /* Câmera com mira de precisão e toque para focar */
         #reader-container { display: none; margin-top: 10px; text-align: center; }
@@ -81,24 +84,25 @@
             font-size: 12px;
             background: #2b2b2b;
         }
-        #scanner-status { font-size: 12px; color: var(--claro-red); font-weight: bold; margin-top: 6px; min-height: 16px; }
+        #scanner-status { font-size: 12px; color: #ff5c66; font-weight: bold; margin-top: 6px; min-height: 16px; }
         
         .search-box { margin-top: 10px; margin-bottom: 10px; }
-        .search-box input { font-size: 14px; padding: 10px 12px; background: #fafafa; }
+        .search-box input { font-size: 14px; padding: 10px 12px; background: var(--input-bg); color: var(--text-main); }
         .table-container { overflow-x: auto; margin-top: 10px; max-height: 300px; overflow-y: auto; }
-        table { width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background: #eee; position: sticky; top: 0; }
-        .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; background: #eef; color: #333; }
-        .badge-cliente { background: #d4edda; color: #155724; }
-        .badge-reversa { background: #fff3cd; color: #856404; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; color: var(--text-main); }
+        th, td { border: 1px solid var(--border-color); padding: 8px; text-align: left; }
+        th { background: #282832; color: #ffffff; position: sticky; top: 0; z-index: 1; }
+        tr:nth-child(even) { background: #23232b; }
+        .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; background: #313142; color: #d8d8f0; }
+        .badge-cliente { background: #193b23; color: #8ff0a4; }
+        .badge-reversa { background: #423315; color: #ffd479; }
         .footer-info {
             text-align: center;
             font-size: 12px;
-            color: #666;
+            color: #9e9eab;
             margin: 18px 0 8px 0;
-            padding: 8px;
-            border-top: 1px solid #ddd;
+            padding: 10px 8px;
+            border-top: 1px solid var(--border-color);
             font-weight: bold;
         }
     </style>
@@ -186,7 +190,7 @@
         </div>
     </div>
 
-    <footer class="footer-info" id="rodape-versao">Criado por: Técnico Fernando Sato - Versão 24.0 - 20/11/2026 21:46</footer>
+    <footer class="footer-info" id="rodape-versao">Criado por: Fernando Sato - Versão 25.0 - 20/11/2026 21:46</footer>
 
 <script>
     let dados = JSON.parse(localStorage.getItem('claro_equipamentos_v1') || '[]');
@@ -195,11 +199,11 @@
     let flashAtivo = false;
     let videoTrackAtual = null;
 
-    const VERSAO_APP = "24.0";
+    const VERSAO_APP = "25.0";
     function atualizarRodape() {
         const rodape = document.getElementById('rodape-versao');
         if (rodape) {
-            rodape.innerText = `Criado por: Técnico Fernando Sato - Versão ${VERSAO_APP} - ${obterDataAtual()}`;
+            rodape.innerText = `Criado por: Fernando Sato - Versão ${VERSAO_APP} - ${obterDataAtual()}`;
         }
     }
     atualizarRodape();
