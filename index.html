@@ -144,8 +144,9 @@
                     </div>
                 </div>
             </div>
-            <div class="camera-controls">
+            <div class="camera-controls" style="flex-wrap: wrap;">
                 <button type="button" onclick="capturarDaMiraAoClicar()">📸 Ler Mira Agora</button>
+                <button type="button" onclick="capturarForcadoQualquerCodigo()" style="background:#0056b3;">🔓 Forçar Leitura</button>
                 <button type="button" onclick="forcarFoco()">🎯 Focar</button>
                 <button type="button" id="btn-flash" onclick="toggleFlash()">🔦 Luz</button>
             </div>
@@ -185,7 +186,7 @@
         </div>
     </div>
 
-    <footer class="footer-info" id="rodape-versao">Criado por: Técnico Fernando Sato - Versão 22.0 - 11/26</footer>
+    <footer class="footer-info" id="rodape-versao">Criado por: Técnico Fernando Sato - Versão 24.0 - 20/11/2026 21:46</footer>
 
 <script>
     let dados = JSON.parse(localStorage.getItem('claro_equipamentos_v1') || '[]');
@@ -194,17 +195,15 @@
     let flashAtivo = false;
     let videoTrackAtual = null;
 
-    const VERSAO_APP = "22.0";
+    const VERSAO_APP = "24.0";
     function atualizarRodape() {
-        const agora = new Date();
-        const mes = String(agora.getMonth() + 1).padStart(2, '0');
-        const ano = String(agora.getFullYear()).slice(-2);
         const rodape = document.getElementById('rodape-versao');
         if (rodape) {
-            rodape.innerText = `Criado por: Técnico Fernando Sato - Versão ${VERSAO_APP} - ${mes}/${ano}`;
+            rodape.innerText = `Criado por: Técnico Fernando Sato - Versão ${VERSAO_APP} - ${obterDataAtual()}`;
         }
     }
     atualizarRodape();
+    setInterval(atualizarRodape, 15000);
     atualizarTabela();
 
     function obterDataAtual() {
@@ -605,6 +604,98 @@
         } catch (e) {
             if (cameraAtiva && statusDiv) {
                 statusDiv.innerText = "Câmera ativa. Continue mirando no código desejado.";
+            }
+        } finally {
+            cliqueEmAndamento = false;
+        }
+    }
+
+    // Lê e copia qualquer código de barras ou texto na mira, ignorando todos os filtros de rejeição
+    async function capturarForcadoQualquerCodigo() {
+        const statusDiv = document.getElementById('scanner-status');
+        const videoEl = document.querySelector('#reader video');
+        if (!cameraAtiva) return;
+
+        forcarFoco().catch(() => {});
+
+        if (cliqueEmAndamento || !videoEl || videoEl.readyState < 2) {
+            return;
+        }
+
+        cliqueEmAndamento = true;
+        if (statusDiv) statusDiv.innerText = "🔓 Lendo qualquer código na mira (sem filtros)...";
+
+        try {
+            const vw = videoEl.videoWidth;
+            const vh = videoEl.videoHeight;
+            if (!vw || !vh) return;
+
+            const cropW = Math.floor(vw * 0.90);
+            const cropH = Math.floor(vh * 0.22);
+            const cropX = Math.floor((vw - cropW) / 2);
+            const cropY = Math.floor((vh - cropH) / 2);
+
+            const canvasBase = document.createElement('canvas');
+            canvasBase.width = cropW;
+            canvasBase.height = cropH;
+            const ctx = canvasBase.getContext('2d', { willReadFrequently: true });
+            ctx.drawImage(videoEl, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+            // 1. Tenta BarcodeDetector nativo em todos os formatos (0°, 90°, 270°) sem rejeitar nada
+            if ('BarcodeDetector' in window) {
+                try {
+                    const detector = new BarcodeDetector();
+                    for (const ang of [0, 90, 270]) {
+                        if (!cameraAtiva) return;
+                        const cRot = ang === 0 ? canvasBase : criarCanvasRotacionado(canvasBase, ang);
+                        const barcodes = await detector.detect(cRot);
+                        for (const bc of barcodes) {
+                            const bruto = (bc.rawValue || '').trim().toUpperCase();
+                            if (bruto) {
+                                // Remove apenas prefixos de rótulo se vierem juntos, mantendo o valor completo
+                                const limpo = bruto.replace(/^(BOX\s*S\/?N|S\/?N|SERIAL|EAN|CM\s*MAC|EMTA\s*MAC|WIFI\s*2G\s*MAC|WIFI\s*5G\s*MAC|WIFI\s*MAC|MOCA\s*MAC|MAC\s*ETHERNET|MAC|CA\s*I?D|CAID|ICCID)\s*[:\-]?\s*/i, '').trim();
+                                const codigoFinal = limpo || bruto;
+                                const tipoAuto = detectarTipoEquipamento(codigoFinal, bruto, null);
+                                finalizarComSucesso({ codigo: codigoFinal, tipo: tipoAuto }, `Forcado-Barcode-${ang}`);
+                                return;
+                            }
+                        }
+                    }
+                } catch (e) {}
+            }
+
+            // 2. Se não houver código de barras legível, tenta OCR sem filtro de rejeição
+            if (!ocrOcupado && ocrWorker && cameraAtiva) {
+                ocrOcupado = true;
+                try {
+                    for (const ang of [0, 90]) {
+                        if (!cameraAtiva) break;
+                        const cRot = ang === 0 ? canvasBase : criarCanvasRotacionado(canvasBase, ang);
+                        const { data: { text } } = await ocrWorker.recognize(cRot);
+                        const linhas = (text || '').toUpperCase().split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+                        for (const linha of linhas) {
+                            // Extrai valor após ':' ou sequência alfanumérica relevante (>= 6 caracteres)
+                            const aposDoisPontos = linha.includes(':') ? linha.split(':').slice(1).join(':').trim() : linha;
+                            const candidato = aposDoisPontos.replace(/[^A-Z0-9:\-]/g, '');
+                            if (candidato.length >= 6) {
+                                const tipoAuto = detectarTipoEquipamento(candidato, linha, null);
+                                finalizarComSucesso({ codigo: candidato, tipo: tipoAuto }, `Forcado-OCR-${ang}`);
+                                return;
+                            }
+                        }
+                    }
+                } catch (e) {
+                } finally {
+                    ocrOcupado = false;
+                }
+            }
+
+            if (cameraAtiva && statusDiv) {
+                statusDiv.innerText = "Nenhum código detectado na mira. Centralize na linha vermelha e tente novamente.";
+            }
+        } catch (e) {
+            if (cameraAtiva && statusDiv) {
+                statusDiv.innerText = "Erro ao tentar leitura forçada. Tente novamente.";
             }
         } finally {
             cliqueEmAndamento = false;
