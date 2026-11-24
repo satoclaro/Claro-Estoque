@@ -116,7 +116,7 @@
 
     <div class="card">
         <label for="contrato">Número do Contrato / OS</label>
-        <input type="text" id="contrato" placeholder="Ex: 001234567">
+        <input type="text" id="contrato" placeholder="Ex: 001234567" onclick="colarContratoAutomatico()" onfocus="colarContratoAutomatico()">
 
         <label for="movimentacao">Destino / Movimentação</label>
         <select id="movimentacao">
@@ -126,16 +126,16 @@
 
         <label for="tipo">Tipo de Equipamento</label>
         <select id="tipo">
-            <option value="ONT">ONT (Fibra Óptica)</option>
-            <option value="EMTA">EMTA (Modem HFC)</option>
+            <option value="ONT">ONT (GPon)</option>
+            <option value="EMTA">EMTA (HFC)</option>
             <option value="DECODER">Decoder TV 4K / HD</option>
             <option value="SMARTCARD">Smartcard</option>
             <option value="CHIP">Chip / ICCID Movel</option>
-            <option value="MESH">Roteador Mesh Wi-Fi</option>
+            <option value="MESH">Mesh Wi-Fi</option>
         </select>
 
         <label for="mac">MAC / CA ID / Serial</label>
-        <input type="text" id="mac" placeholder="Escaneie ou digite o MAC ou CA ID...">
+        <input type="text" id="mac" placeholder="Escaneie ou digite o MAC ou CA ID..." oninput="reconhecerTipoAoDigitarOuColar()">
         <button type="button" class="secondary" onclick="toggleScanner()">📷 Ligar e Desligar Câmera</button>
         
         <div id="reader-container">
@@ -193,7 +193,7 @@
         </div>
     </div>
 
-    <footer class="footer-info" id="rodape-versao">Criado por: Fernando Sato - Versão 28.0 - 24/11/2026 20:06</footer>
+    <footer class="footer-info" id="rodape-versao">Criado por: Fernando Sato - Versão 29.0 - 24/11/2026 20:37</footer>
 
 <script>
     let dados = JSON.parse(localStorage.getItem('claro_equipamentos_v1') || '[]');
@@ -202,8 +202,8 @@
     let flashAtivo = false;
     let videoTrackAtual = null;
 
-    const VERSAO_APP = "28.0";
-    const DATA_REVISAO_APP = "24/11/2026 20:06";
+    const VERSAO_APP = "29.0";
+    const DATA_REVISAO_APP = "24/11/2026 20:37";
     atualizarTabela();
 
     function obterDataAtual() {
@@ -324,6 +324,35 @@
         return ocrWorker;
     }
 
+    let ultimoClipboardColado = '';
+
+    async function colarContratoAutomatico() {
+        const campoContrato = document.getElementById('contrato');
+        if (!campoContrato) return;
+        try {
+            if (navigator.clipboard && navigator.clipboard.readText) {
+                const texto = (await navigator.clipboard.readText()).trim();
+                if (!texto) return;
+                // Evita colar o próprio MAC recém-copiado pelo app se houver um número de contrato/OS disponível
+                const macAtual = (document.getElementById('mac')?.value || '').trim().toUpperCase();
+                if (texto.toUpperCase() === macAtual && macAtual !== '') return;
+
+                // Extrai número de contrato/OS se houver dígitos relevantes ou texto limpo
+                const apenasDigitos = texto.replace(/\D/g, '');
+                const valorParaColar = (apenasDigitos.length >= 5 && apenasDigitos.length <= 15 && /^[\d\s.\-\/]+$/.test(texto))
+                    ? apenasDigitos
+                    : texto;
+
+                if (!campoContrato.value.trim() || campoContrato.value.trim() === ultimoClipboardColado) {
+                    campoContrato.value = valorParaColar;
+                    ultimoClipboardColado = valorParaColar;
+                }
+            }
+        } catch (e) {
+            // Permissão de clipboard negada ou indisponível no navegador
+        }
+    }
+
     // Detecta automaticamente o tipo de equipamento com base no rótulo, contexto ou padrão do código
     function detectarTipoEquipamento(codigo, contextoTexto = '', tipoPreferencial = null) {
         const ctx = (contextoTexto || '').toUpperCase();
@@ -351,17 +380,30 @@
 
         const cod = (codigo || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
         const atual = document.getElementById('tipo')?.value;
+
+        // Chip / ICCID (19 a 20 dígitos, geralmente iniciado por 8955)
         if (/^(89\d{17,18}|\d{19,20})$/.test(cod)) {
             return 'CHIP';
         }
+
+        // Smartcard Nagra (12 dígitos começando com 246 / 241 / 245 / 248 ou 11-12 dígitos) vs Decoder CA ID
         if (/^\d{11,14}$/.test(cod)) {
             if (atual === 'SMARTCARD' || atual === 'DECODER') return atual;
+            if (/^24[0-9]{9,10}$/.test(cod)) return 'SMARTCARD';
             return 'DECODER';
         }
+
+        // ONT GPON (geralmente serial/PON de 16 caracteres ou prefixo de fabricante GPON como HWTC, ZTEG, FHTT, ALCL, NOKG, SCOM, MSTC)
+        if (/^(HWTC|ZTEG|FHTT|ALCL|NOKG|SCOM|MSTC|SMBS|TPLG|UBNT|GPON)[0-9A-F]{8,12}$/.test(cod) || /^[0-9A-F]{16}$/.test(cod)) {
+            return 'ONT';
+        }
+
+        // MAC de 12 caracteres hexadecimais (EMTA HFC, ONT GPON ou Mesh Wi-Fi)
         if (/^[0-9A-F]{12}$/.test(cod)) {
             if (atual === 'ONT' || atual === 'MESH' || atual === 'EMTA') return atual;
             return 'EMTA';
         }
+
         return null;
     }
 
@@ -371,6 +413,13 @@
         if (selectTipo && selectTipo.querySelector(`option[value="${tipoDetectado}"]`)) {
             selectTipo.value = tipoDetectado;
         }
+    }
+
+    function reconhecerTipoAoDigitarOuColar() {
+        const val = (document.getElementById('mac')?.value || '').trim().toUpperCase();
+        if (!val) return;
+        const tipoAuto = detectarTipoEquipamento(val, val, null);
+        if (tipoAuto) aplicarTipoAutomatico(tipoAuto);
     }
 
     // Rejeita SEMPRE: BOX S/N, S/N, Serial, EAN, WIFI 2G/5G MAC, EMTA MAC, MAC Ethernet, MoCA MAC, CM MAC Address, IP, Senha, Usuário, Fabr
@@ -459,15 +508,20 @@
 
         const semEspacos = limpo.replace(/\s+/g, '');
 
-        // Código numérico de 11 a 14 dígitos: só aceita se estiver no modo SMARTCARD ou DECODER (CA ID), rejeitando BOX S/N / Serial
+        // Código numérico de 11 a 14 dígitos: reconhece automaticamente Smartcard ou Decoder (CA ID)
         if (/^\d{11,14}$/.test(semEspacos)) {
-            if (tipoAtual === 'SMARTCARD') {
+            if (tipoAtual === 'SMARTCARD' || tipoAtual === 'DECODER') {
+                return { codigo: semEspacos, tipo: tipoAtual };
+            }
+            if (/^24[0-9]{9,10}$/.test(semEspacos)) {
                 return { codigo: semEspacos, tipo: 'SMARTCARD' };
             }
-            if (tipoAtual === 'DECODER') {
-                return { codigo: semEspacos, tipo: 'DECODER' };
-            }
-            return null;
+            return { codigo: semEspacos, tipo: 'DECODER' };
+        }
+
+        // Serial GPON / ONT (16 caracteres alfanuméricos ou prefixo GPON conhecido)
+        if (/^(HWTC|ZTEG|FHTT|ALCL|NOKG|SCOM|MSTC|SMBS|TPLG|UBNT|GPON)[0-9A-F]{8,12}$/.test(semEspacos) || /^[0-9A-F]{16}$/.test(semEspacos)) {
+            return { codigo: semEspacos, tipo: 'ONT' };
         }
 
         // ICCID de 19 a 20 dígitos
