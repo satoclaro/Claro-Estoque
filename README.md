@@ -1,4 +1,4 @@
-# Claro - Controle de Equipamentos Diário (Versão 26.0)
+# Claro - Controle de Equipamentos Diário (Versão 28.0)
 
 Aplicação web responsiva e 100% client-side (offline-first via `localStorage`) em **tema escuro**, desenvolvida para registro, conferência, rastreio de reversa, backup e exportação diária de equipamentos de telecomunicações em campo.
 
@@ -9,7 +9,7 @@ Aplicação web responsiva e 100% client-side (offline-first via `localStorage`)
 - **Cadastro Rápido de Equipamentos**:
   - Número do Contrato / OS
   - Destino / Movimentação: **Cliente** (Instalação / Entrega) ou **Reversa** (Retirada / Devolução)
-  - Tipo de Equipamento: `ONT (Fibra Óptica)`, `EMTA (Modem HFC)`, `Decoder TV 4K / HD`, `Smartcard (Cartão Nagra)`, `Chip / ICCID Móvel` e `Roteador Mesh Wi-Fi`
+  - Tipo de Equipamento: `ONT (Fibra Óptica)`, `EMTA (Modem HFC)`, `Decoder TV 4K / HD`, `Smartcard`, `Chip / ICCID Móvel` e `Roteador Mesh Wi-Fi`
   - Detecção automática do tipo de equipamento com base no prefixo ou padrão do código lido.
 - **Leitor Híbrido com Linha de Mira (Código de Barras + OCR)**:
   - Combina `BarcodeDetector` nativo, `html5-qrcode` (ZXing) e `Tesseract.js` (OCR) operando apenas sobre a área da linha vermelha de mira.
@@ -40,4 +40,4 @@ Aplicação web responsiva e 100% client-side (offline-first via `localStorage`)
 ---
 
 **Autor:** Fernando Sato  
-**Versão:** 26.0
+**Versão:** 28.0 (24/11/2026 20:06)

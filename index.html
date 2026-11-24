@@ -129,7 +129,7 @@
             <option value="ONT">ONT (Fibra Óptica)</option>
             <option value="EMTA">EMTA (Modem HFC)</option>
             <option value="DECODER">Decoder TV 4K / HD</option>
-            <option value="SMARTCARD">Smartcard (Cartão Nagra)</option>
+            <option value="SMARTCARD">Smartcard</option>
             <option value="CHIP">Chip / ICCID Movel</option>
             <option value="MESH">Roteador Mesh Wi-Fi</option>
         </select>
@@ -193,7 +193,7 @@
         </div>
     </div>
 
-    <footer class="footer-info" id="rodape-versao">Criado por: Fernando Sato - Versão 26.0 - 20/11/2026 21:46</footer>
+    <footer class="footer-info" id="rodape-versao">Criado por: Fernando Sato - Versão 28.0 - 24/11/2026 20:06</footer>
 
 <script>
     let dados = JSON.parse(localStorage.getItem('claro_equipamentos_v1') || '[]');
@@ -202,15 +202,8 @@
     let flashAtivo = false;
     let videoTrackAtual = null;
 
-    const VERSAO_APP = "26.0";
-    function atualizarRodape() {
-        const rodape = document.getElementById('rodape-versao');
-        if (rodape) {
-            rodape.innerText = `Criado por: Fernando Sato - Versão ${VERSAO_APP} - ${obterDataAtual()}`;
-        }
-    }
-    atualizarRodape();
-    setInterval(atualizarRodape, 15000);
+    const VERSAO_APP = "28.0";
+    const DATA_REVISAO_APP = "24/11/2026 20:06";
     atualizarTabela();
 
     function obterDataAtual() {
@@ -357,15 +350,16 @@
         if (tipoPreferencial) return tipoPreferencial;
 
         const cod = (codigo || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+        const atual = document.getElementById('tipo')?.value;
         if (/^(89\d{17,18}|\d{19,20})$/.test(cod)) {
             return 'CHIP';
         }
         if (/^\d{11,14}$/.test(cod)) {
+            if (atual === 'SMARTCARD' || atual === 'DECODER') return atual;
             return 'DECODER';
         }
         if (/^[0-9A-F]{12}$/.test(cod)) {
-            const atual = document.getElementById('tipo')?.value;
-            if (atual === 'ONT' || atual === 'MESH') return atual;
+            if (atual === 'ONT' || atual === 'MESH' || atual === 'EMTA') return atual;
             return 'EMTA';
         }
         return null;
@@ -983,7 +977,7 @@
                 <td>${dataExibicao}</td>
                 <td><b>${item.contrato}</b></td>
                 <td><span class="badge ${badgeClass}">${mov}</span></td>
-                <td><span class="badge">${item.tipo}</span></td>
+                <td><span class="badge">${item.tipo === 'SMARTCARD' ? 'Smartcard' : item.tipo}</span></td>
                 <td>${item.mac}</td>
                 <td>
                     <button class="danger" onclick="deletarItem(${item.id})">Excluir</button>${acaoReversaHtml}
