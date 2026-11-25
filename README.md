@@ -1,28 +1,28 @@
-# Claro - Controle de Equipamentos Diário (Versão 29.0)
+# Controle de Equipamentos Diário — Edição Timão
 
-Aplicação web responsiva e 100% client-side (offline-first via `localStorage`) em **tema escuro**, desenvolvida para registro, conferência, rastreio de reversa, backup e exportação diária de equipamentos de telecomunicações em campo.
+Aplicação web mobile em arquivo único (`index.html`) com identidade visual temática do **Sport Club Corinthians Paulista** (preto, branco e detalhes em vermelho), voltada ao registro diário de equipamentos, leitura por câmera com mira, reconhecimento automático de tipo, controle de reversa e exportação de dados.
 
----
+## Funcionalidades
 
-## Principais Funcionalidades
+- **Tema Alvinegro:** Interface escura em preto e branco com listras verticais discretas, destaques em vermelho e brasão do Corinthians renderizado em alta definição via `<canvas>` (exibido no cabeçalho e incorporado ao relatório em PDF).
+- **Registro de Equipamentos:** Cadastro por **Número do Contrato / OS** (com colagem automática a partir da área de transferência ao focar/clicar no campo), **Destino / Movimentação** (`Cliente` ou `Reversa`), **Tipo de Equipamento** (`ONT`, `EMTA`, `DECODER`, `SMARTCARD`, `CHIP`, `MESH`) e **MAC / CA ID / Serial**.
+- **Leitura por Câmera com Mira:**
+  - Suporte a códigos de barras (`Code 128`, `Code 39`, `Code 93`, `ITF`, `Codabar`) via `html5-qrcode` e `BarcodeDetector`, além de leitura de rótulos via `Tesseract.js` (OCR).
+  - Toque na área da câmera ou use os botões **Ler Mira Agora**, **Forçar Leitura**, **Focar** e **Luz** (lanterna, quando suportada pelo dispositivo).
+  - Filtro automático de identificação para priorizar códigos válidos e detecção inteligente do tipo de equipamento.
+- **Gestão e Reversa:** Busca instantânea por MAC, CA ID, contrato ou data/hora, exclusão de registros e registro de data/hora de entrega para itens em **Reversa**.
+- **Persistência e Exportação/Importação:**
+  - Armazenamento local automático no navegador (`localStorage`, chave `claro_equipamentos_v1`).
+  - Exportação em **CSV** (`relatorio_equipamentos_timao.csv`), **PDF** (`relatorio_equipamentos_timao.pdf`) e **JSON** (`backup_equipamentos_timao.json`), além de **Importação JSON** com opção de mesclar sem duplicatas ou substituir a lista atual.
 
-- **Cadastro Rápido de Equipamentos**:
-  - **Número do Contrato / OS**: Cola automaticamente o número da área de transferência ao clicar/tocar no campo.
-  - **Destino / Movimentação**: **Cliente** (Instalação / Entrega) ou **Reversa** (Retirada / Devolução).
-  - **Tipo de Equipamento**: `ONT (GPon)`, `EMTA (HFC)`, `Decoder TV 4K / HD`, `Smartcard`, `Chip / ICCID Movel` e `Mesh Wi-Fi`.
-  - **Reconhecimento Automático**: Identifica e seleciona automaticamente o tipo de equipamento no menu ao escanear, digitar ou colar o código.
-- **Leitor Híbrido com Linha de Mira (Código de Barras + OCR)**:
-  - Combina `BarcodeDetector` nativo, `html5-qrcode` (ZXing) e `Tesseract.js` (OCR) operando apenas sobre a área da linha vermelha de mira.
-  - **Filtro Inteligente de Etiquetas**: Aceita automaticamente `CM MAC`, `CA ID` / `CAID`, `Smartcard`, `ONT (GPon)` e `ICCID`, rejeitando códigos indesejados como `BOX S/N`, `S/N`, `Serial`, `EAN`, `WIFI 2G/5G MAC`, `EMTA MAC`, `MoCA MAC` e `MAC Ethernet`.
-  - **Botão `🔓 Forçar Leitura`**: Captura e copia imediatamente qualquer código de barras ou texto na mira (em 0°, 90° ou 270°), ignorando todos os filtros de rejeição quando necessário.
-  - **Controles de Câmera**: `📸 Ler Mira Agora`, `🔓 Forçar Leitura`, `🎯 Focar`, `🔦 Luz` (lanterna) e toque direto na tela da câmera para focar e capturar.
-- **Controle de Reversa e Pesquisa**:
-  - Marcação de entrega de reversa (`📅 Entregue`) com registro automático de data e hora (`✓ Entregue: DD/MM/AAAA HH:MM`).
-  - Busca instantânea por MAC, CA ID, Contrato/OS ou Data.
-- **Exportação, Backup e Restauração de Dados**:
-  - **Excel (CSV)**, **PDF**, **Exportar JSON (`💾 Exportar JSON`)** e **Importar JSON (`📂 Importar JSON`)**.
+## Como Usar
 
----
+1. Extraia os arquivos do pacote `.zip`.
+2. Abra o `index.html` em um navegador moderno (de preferência em **HTTPS** ou `localhost` para que o navegador permita o acesso à câmera do celular).
+3. Preencha ou escaneie os dados do equipamento e clique em **Salvar Equipamento**.
 
-**Autor:** Fernando Sato  
-**Versão:** 29.0 (24/11/2026 20:37)
+## Autor e Versão
+
+- **Criado por:** Fernando Sato
+- **Versão:** 30.0 (Edição Timão)
+- **Data de revisão:** 24/11/2026 21:30
